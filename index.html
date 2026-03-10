@@ -115,6 +115,7 @@
                 const card = document.createElement('button');
                 card.className = 'card';
                 card.textContent = '🎶';
+                card.style.transform = `rotate(${Math.random() * 6 - 3}deg) translateX(${Math.random() * 10 - 5}px) translateY(${Math.random() * 10 - 5}px)`;
                 card.onclick = () => retournerCarte(index, card);
                 board.appendChild(card);
                 

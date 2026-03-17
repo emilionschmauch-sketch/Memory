@@ -1,221 +1,1087 @@
-<!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu de Memory</title>
+    <title>Jeu de la Perm</title>
     <style>
         body {
-            display: flex;
+            text-align : center;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #ff1010 0%, #764ba2 100%);
             font-family: Arial, sans-serif;
         }
-        .container {
-            text-align: center;
-        }
         h1 {
-            color: red;
-            margin-bottom: 20px;
-        }
-        .game-board {
-            display: grid;
-            grid-template-columns: repeat(4, 100px);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .card {
-            width: 100px;
-            height: 100px;
-            background: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 40px;
-            transition: transform 0.2s;
-        }
-        .card:hover {
-            transform: scale(1.07)!important;
-        }
-        .card.retournées {
-            background: #667eea;
-            color: white;
+            color: rgb(58, 13, 131);
         }
         button {
             padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
-            background: white;
+            background: rgb(233, 199, 4);
             border: none;
             border-radius: 5px;
+            }
+            button:hover {
+                transform: scale(1.05);
+                transition: transform 0.2s;
+            }
+            select:hover {
+                transform: scale(1.05);
+                transition: transform 0.2s;
+            }
+        
+        .selectionner {
+            color :blue;
         }
-        .joueur {
-    padding: 10px;
-    font-size: 16px;
-    width: 120px;
-    border-radius: 5px;
-    border: none;
-    text-align: center;
-}
-        .zone-jeu {
+        .utilisé {
+            color : red;
+        }
+        .flex-container {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
             margin-bottom: 20px;
-
-            .zone-joueur {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-}
+        }
+        .items {
+            text-align: center;
+            margin : 0 20px;
+        }
+    </style>
+    </head>
+<body>
+    <div class="flex-container">
+    <div class="items">
+        <input style="height:50px; width:50px; background: none; border: none; font-size: 50px; font-weight: bold;" value="O" id="skin_j1">
+        <p style="font-size: 30px;">Coups restants : </p>
+        <p id="coups-j1"style="font-size: 40px;">1</p>
+        <p style="font-size: 30px; display:none" id="t_reservations-j1">Réservations restantes : </p>
+        <p id="reservations-j1"style="font-size: 40px; display:none">0</p>
+    </div>
+    <div class="items">
+    <h1>Jeu de la Perm</h1>
+    <input type="number" id="ligne" value="15" min="8" max="50">
+    <input type="number" id="colonne" value="15" min="8" max="50">
+    <button id="generer" onclick="genererGrille()">Générer la grille</button>
+    <br><br>
+    <div id="grille"></div>
+    <br>
+    <select id="selectionner" onchange="selectionner()" style="width: 180px; height : 35px; font-size: 20px;">
+        <option value="" selected>Faire une figure</option>
+        <option value="1">+2 points</option>
+        <option value="2">Transformation</option>
+        <option value="3">1 point/figure</option>
+        <option value="4">Réservation</option>
+        <option value="5">Rase-board</option>
+        <option value="6">+4 fermés</option>
+        <option value="7">Réservation/figure</option>
+        <option value="8">Destruction</option>
+        <option value="9">Sacrifice pour ouverture</option>
+    </select>
+    <button id="deselectionner" onclick="deSelectionner()">Désélectionner</button>
+    <button id="erreur" onclick="document.querySelectorAll('td').forEach(td => { if (td.classList.contains('selectionner')) { td.textContent=' '; } });">Retirer des points</button>
+    </div>
+    <div class="items">
+        <input style="height:50px; width:50px; background: none; border: none; font-size: 50px; font-weight: bold;" value="X" id="skin_j2" >
+        <p style="font-size: 30px;">Coups restants :</p>
+        <p id="coups-j2"style="font-size: 40px;">0</p>
+        <p style="font-size: 30px; display:none" id="t_reservations-j2">Réservations restantes : </p>
+        <p id="reservations-j2"style="font-size: 40px; display:none">0</p>
+    </div>
+</div>
+    <script>
+        let j1=1;
+        let j2=0;
+        let joueurTransformation = null;
+        let nb_figure_j1 = 0;
+        let nb_figure_j2 = 0;
+        let reservation=1;
+        let nb_resa=0;
+        let joueurReservation = null;
+        let fermés_restants=0;
+        let droit_2points_j1=true;
+        let droit_2points_j2=true;
+        let droit_1pfigure_j1=true;
+        let droit_1pfigure_j2=true;
+        let skin_j1 = document.getElementById('skin_j1').value;
+        let skin_j2 = document.getElementById('skin_j2').value;
+        let destruction=0
+        let joueurSacrifice = null;
+        let ouverture=0;
+        document.getElementById('skin_j1').addEventListener('input', function() {
+            skin_j1 = this.value;
+        });
+        document.getElementById('skin_j2').addEventListener('input', function() {
+            skin_j2 = this.value;
+        });
+        genererGrille();
+        function genererGrille() {
+            nb_figure_j1 = 0;
+            nb_figure_j2 = 0;
+            document.getElementById('grille').innerHTML = "";
+            const ligne = document.getElementById('ligne').value;
+            const colonne = document.getElementById('colonne').value;
+            const grille = document.createElement('table');
+            grille.style="text-align: center; border-collapse: collapse; margin: 0 auto;";
+            grille.style.border="1px solid black";
+            for (let i = 0; i < ligne; i++) {
+                const tr = document.createElement('tr');
+                tr.style.border="1px solid black";
+                for (let j = 0; j < colonne; j++) {
+                    const td = document.createElement('td');
+                    td.style="width: 30px; height: 30px; border: 1px solid black; text-align: center; font-size: 20px;";
+                    td.textContent = " ";
+                    td.addEventListener('click', premierTourClick);
+                    tr.appendChild(td);
+                }
+                grille.appendChild(tr);
+            }
+            document.getElementById('grille').appendChild(grille);
+        }
+        
+        function jouer(element){
+            if(element.textContent==" "){
+                let skip=false;
+                if(j1<=j2 && !(element.style.backgroundColor === "gold")){
+                    element.textContent=skin_j2;
+                    droit_2points_j2=true;
+                    droit_1pfigure_j1=true;
+                    j1++;
+                    if (est_victoire(skin_j2)) {
+                    setTimeout(() => {
+                            alert("Le joueur "+skin_j2+" a gagné !");
+                        }, 100);
+                    }
+                    document.getElementById('coups-j2').textContent = parseInt(document.getElementById('coups-j2').textContent) - 1;
+                    if (document.getElementById('coups-j2').textContent == "0" && document.getElementById('coups-j1').textContent === "0") {
+                        document.getElementById('coups-j1').textContent = parseInt(document.getElementById('coups-j1').textContent) + 1;
+                    }
+                    
+                    if (fermés_restants > 0){
+                        element.classList.add("utilisé");
+                        fermés_restants--;
+                    }
+                    
+                    skip=true;
+                    
+                    
+                }
+                else if(j2<j1 && !(element.style.backgroundColor === "purple") && skip===false){
+                    element.textContent=skin_j1;
+                    droit_2points_j1=true;
+                    droit_1pfigure_j2=true;
+                    j2++;
+                    if (est_victoire(skin_j1)) {
+                        setTimeout(() => {
+                            alert("Le joueur " + skin_j1 + " a gagné !");
+                        }, 100);
+                    }
+                    document.getElementById('coups-j1').textContent = parseInt(document.getElementById('coups-j1').textContent) - 1;
+                        if (document.getElementById('coups-j1').textContent == "0" && document.getElementById('coups-j2').textContent === "0") {
+                            document.getElementById('coups-j2').textContent = parseInt(document.getElementById('coups-j2').textContent) + 1;
+                        }
+                        if (fermés_restants > 0){
+                        element.classList.add("utilisé");
+                        fermés_restants--;
+                    }
+                    
+                    
+                }
+            }
+            else{
+                if (element.classList.contains("selectionner")||element.classList.contains("utilisé")){
+                    element.classList.remove("selectionner");
+                }
+                else {
+                    element.classList.add("selectionner");
+                }
+            
+            }
+        skip=false;
 
         }
+        function jouerClick(e){
+    jouer(e.currentTarget);
+}
 
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 style="color: red;">Memory</h1><br>
-        <input type="radio" id="1joueur" name="Nbjoueurs" onclick="reinitialisation()" checked> 1 Joueur </input>
-        <input type="radio" id="2joueurs" name="Nbjoueurs" onclick="reinitialisation()"> 2 Joueurs </input><br><br><br>
-        <div class="zone-jeu">
-        <div class="zone-joueur multi">
-    <input type="text" class="joueur" id="nomJoueur1" value="1er Joueur">
-    <p id="pointJoueur1" style="font-size: 40px;">0</p>
-</div>
+    function selectionner(){
+        const cases = document.querySelectorAll('td.selectionner');
+        let firstContent = null;
+        let allSamePlayer = true;
+        
+        cases.forEach(c => {
+            if (firstContent === null) {
+                firstContent = c.textContent;
+            } else if (c.textContent !== firstContent || c.textContent === " ") {
+                allSamePlayer = false;
+                
+            }
+        });
+        if (!allSamePlayer) {
+            alert("Veuillez sélectionner des points du même joueur");
+        }
+        
+            if (document.getElementById('selectionner').value == "1"){
+                if (estAngle(Array.from(cases))){
+                   
+                    
+                    if (firstContent == skin_j2){
+                         if (droit_2points_j1) {
+                        j1-=2;
+                        document.getElementById('coups-j2').textContent = parseInt(document.getElementById('coups-j2').textContent) + 2;
+                        droit_2points_j1=false;
+                        figure_realise(Array.from(cases), firstContent);
+                         
+                    }
+                        else {
+                            alert("Vous avez déjà utilisé votre droit aux +2 points pour ce tour");
+                        }  
+                        }
+                    else if (firstContent == skin_j1){
+                            if (droit_2points_j2) {
+                        j2-=2;
+                        document.getElementById('coups-j1').textContent = parseInt(document.getElementById('coups-j1').textContent) + 2;
+                        droit_2points_j2=false;
+                        figure_realise(Array.from(cases), firstContent);
+                            }
+                            else {
+                                alert("Vous avez déjà utilisé votre droit aux +2 points pour ce tour");
+                            }
+                    }
+                
+                }
+            
+                else {
+                    alert("Les points ne forment pas un angle");
+                }
+            
+        }
+            else if (document.getElementById('selectionner').value == "2"){
+                if (est_transformation(Array.from(cases))){
+                    figure_realise(Array.from(cases), firstContent);
+                    joueurTransformation = firstContent;
 
-        <div class="game-board" id="gameBoard"></div>
+for (let td of document.querySelectorAll('td')) {
+    td.addEventListener('click', transformationClick);
+}
 
-        <div class="zone-joueur multi">
-    <input type="text" class="joueur" id="nomJoueur2" value="2ème Joueur">
-    <p id="pointJoueur2" style="font-size: 40px;">0</p>
-</div>
+}
+                    
+                
+            
+                else {
+                    alert("Les points ne forment pas une transformation");
+                }
+            }
+            else if (document.getElementById('selectionner').value == "3"){
+                if (est_4_point_en_zigzag(Array.from(cases))){
+                    if (firstContent == skin_j2){
+                        if (droit_1pfigure_j2){
+                        figure_realise(Array.from(cases), firstContent);
+                        j1-=nb_figure_j1;
+                        document.getElementById('coups-j2').textContent = parseInt(document.getElementById('coups-j2').textContent) + nb_figure_j1;
+                        droit_1pfigure_j2=false;
+                    }
+                        else {
+                            alert("Vous avez déjà utilisé 1 point/figure ce tour-ci")
+                        }
+                    }
+                    else if (firstContent == skin_j1){
+                        if (droit_1pfigure_j1){
+                        figure_realise(Array.from(cases), firstContent);
+                        j2-=nb_figure_j2;
+                        document.getElementById('coups-j1').textContent = parseInt(document.getElementById('coups-j1').textContent) + nb_figure_j2;
+                            droit_1pfigure_j1=false;
+                    }
+                        else {
+                             alert("Vous avez déjà utilisé 1 point/figure ce tour-ci")
 
-</div>
-        <button onclick="reinitialisation()">Nouvelle partie</button>
-   <div id="Score 1joueur"> <h2>Nombre de coups : </h2> <h2 id="score">0</h2> </div>
+                        }                    }
+                }
+            
+                else {
+                    alert("Les points ne forment 1 point/figure");
+                }
+            }
+            else if (document.getElementById('selectionner').value == "4"){
+                if (est_reservation(Array.from(cases))){
+                    figure_realise(Array.from(cases), firstContent);
+                    joueurReservation = firstContent;
+                    
+                    for (let td of document.querySelectorAll('td')) {
+                    td.removeEventListener('click', jouerClick);
+                }
+                    for (let td of document.querySelectorAll('td')) {
+                    td.addEventListener('click', reservationClick);
+                }
+                nb_resa=2*est_reservation(Array.from(cases));
+
+                if (joueurReservation===skin_j1){
+        document.getElementById('reservations-j1').style.display = 'block';
+        document.getElementById('t_reservations-j1').style.display = 'block';
+        document.getElementById('reservations-j1').textContent = nb_resa;
+    }
+    else if (joueurReservation===skin_j2){
+        document.getElementById('reservations-j2').style.display = 'block';
+        document.getElementById('t_reservations-j2').style.display = 'block';
+        document.getElementById('reservations-j2').textContent = nb_resa;
+    }
+                }
+            
+                else {
+                    alert("Les points ne forment pas une réservation");
+                }
+            }
+            if (document.getElementById('selectionner').value == "5"){
+                if (est_rase_board(Array.from(cases))){
+                    document.querySelectorAll('td.utilisé').forEach(td => {
+                        td.textContent = " ";
+                        td.classList.remove("utilisé");
+                    });
+                    figure_realise(Array.from(cases), firstContent);
+                }
+                else {
+                    alert("Cette figure n'est pas un rase-board");
+                }
+            }
+            if (document.getElementById('selectionner').value == "6"){
+                if (est_troisfermés(Array.from(cases))){
+                    figure_realise(Array.from(cases), firstContent);
+                    if (firstContent == skin_j2){
+                        j1-=4;
+                        document.getElementById('coups-j2').textContent = parseInt(document.getElementById('coups-j2').textContent) + 4;
+                    }
+                    else if (firstContent == skin_j1){
+                        j2-=4;
+                        document.getElementById('coups-j1').textContent = parseInt(document.getElementById('coups-j1').textContent) + 4;
+                    }
+                    fermés_restants=4;
+                }
+            
+                else {
+                    alert("Les points ne forment pas la figure des +4 fermés");
+                }
+            }
+            if (document.getElementById('selectionner').value == "7"){
+                if (est_reservation_fig(Array.from(cases))){
+                    figure_realise(Array.from(cases), firstContent);
+                    joueurReservation = firstContent;
+                    
+                    
+                    for (let td of document.querySelectorAll('td')) {
+                    td.removeEventListener('click', jouerClick);
+                }
+                    for (let td of document.querySelectorAll('td')) {
+                    td.addEventListener('click', reservationClick);
+                }
+                if (firstContent == skin_j2){
+                        nb_resa=nb_figure_j1;
+                    }
+                    else if (firstContent == skin_j1){
+                        nb_resa=nb_figure_j2;
+                    }
+                    if (joueurReservation===skin_j1){
+        document.getElementById('reservations-j1').style.display = 'block';
+        document.getElementById('t_reservations-j1').style.display = 'block';
+        document.getElementById('reservations-j1').textContent = nb_resa;
+    }
+    else if (joueurReservation===skin_j2){
+        document.getElementById('reservations-j2').style.display = 'block';
+        document.getElementById('t_reservations-j2').style.display = 'block';
+        document.getElementById('reservations-j2').textContent = nb_resa;
+    }
+                }
+            
+                else {
+                    alert("Les points ne forment pas une réservation/figure");
+                }
+            }
+            if (document.getElementById('selectionner').value == "8"){
+                if (est_destruction(Array.from(cases))){
+                    figure_realise(Array.from(cases), firstContent);
+                    destruction=0;
+                    for (let td of document.querySelectorAll('td')) {
+                    td.removeEventListener('click', jouerClick);
+                }
+                    for (let td of document.querySelectorAll('td')) {
+                    td.addEventListener('click', destructionClick);
+                }
+                }
+            
+                else {
+                    alert("Les points ne forment pas une figure de destruction");
+                }
+            }
+            if (document.getElementById('selectionner').value == "9"){
+                if (est_sacrifice_ouverture(Array.from(cases))){
+                    figure_realise(Array.from(cases), firstContent);
+                    destruction=0;
+                    joueurSacrifice = firstContent;
+                    for (let td of document.querySelectorAll('td')) {
+                    td.removeEventListener('click', jouerClick);
+                }
+                    for (let td of document.querySelectorAll('td')) {
+                    td.addEventListener('click', sacrificeClick);
+                }
+                }
+            
+                else {
+                    alert("Les points ne forment pas une figure de sacrifice pour ouverture");
+                }
+            }
+        document.getElementById('selectionner').value = "";}
     
-   
 
-    <script>
-        const emojis = ['🎷', '🎻', '🎺', '🪘', '🪕', '🎼', '🪗', '🪈'];
-        let liste_cartes = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
-        let retournées = [];
-        let trouvées = [];
+    function figure_realise(cases, joueur){
+        if(joueur == skin_j2){
+            nb_figure_j1++;
+        }
+        else if(joueur == skin_j1){
+            nb_figure_j2++;
+        }
 
-        function initialisation() {
-            const board = document.getElementById('gameBoard');
-            board.innerHTML = '';
-            liste_cartes.forEach((emoji, index) => {
-                const card = document.createElement('button');
-                card.className = 'card';
-                card.textContent = '🎶';
-                card.style.transform = `rotate(${Math.random() * 6 - 3}deg) translateX(${Math.random() * 10 - 5}px) translateY(${Math.random() * 10 - 5}px)`;
-                card.onclick = () => retournerCarte(index, card);
-                board.appendChild(card);
+            cases.forEach(c => {
+                c.classList.remove("selectionner");
+                c.classList.add("utilisé");
+
                 
             });
-            if (document.getElementById("1joueur").checked){
-                document.getElementById("Score 1joueur").style.display = 'block';
-            } else {
-                document.getElementById("Score 1joueur").style.display = 'none'; 
-            }
-            if (document.getElementById("2joueurs").checked){
-                document.getElementsByClassName("zone-joueur multi")[0].style.display = 'block';
-                document.getElementsByClassName("zone-joueur multi")[1].style.display = 'block';
-            } else {
-                document.getElementsByClassName("zone-joueur multi")[0].style.display = 'none';
-                document.getElementsByClassName("zone-joueur multi")[1].style.display = 'none';
-            }
-
-
-            document.getElementById("score").innerHTML = '0';
-            document.getElementById("pointJoueur1").innerHTML = '0';
-            document.getElementById("pointJoueur2").innerHTML = '0';
         }
+    
+    function premierTourClick(e){
+        premierTour(e.currentTarget);
+    }
+    function premierTour(element) {
+        element.textContent = skin_j1;
+        element.classList.add("utilisé");
+        j2++;
+        document.getElementById('coups-j1').textContent = parseInt(document.getElementById('coups-j1').textContent) - 1;
+        document.getElementById('coups-j2').textContent = parseInt(document.getElementById('coups-j2').textContent) + 1;
+        document.querySelectorAll("td").forEach((td) => {
+            td.removeEventListener('click', premierTourClick);
+        });
+        document.querySelectorAll("td").forEach((td) => {
+            td.addEventListener('click', jouerClick);
+        });
+    
+   }     
 
-        function retournerCarte(index, card) {
-            if (retournées.length < 2 && !trouvées.includes(index) && !retournées.includes(index)) {
-                card.textContent = liste_cartes[index];
-                card.classList.add('retournées');
-                retournées.push(index);
-
-                if (retournées.length === 2) {
-                    setTimeout(concordance, 1000);
-                    let p=document.getElementById("score");
-                    p.innerHTML =parseInt(p.innerHTML)+1;
+        function deSelectionner(){
+            const cases = document.querySelectorAll('#grille td');
+            cases.forEach(c => {
+                if(c.classList.contains("selectionner")){
+                    c.classList.remove("selectionner");
                 }
-            }
+            });
+        }
+        function getCoords(td) {
+            const row = td.parentElement.rowIndex;
+            const col = td.cellIndex;
+            return { row, col };
         }
 
-        function concordance() {
-            const [first, second] = retournées;
-            if (liste_cartes[first] === liste_cartes[second]) {
-                trouvées.push(first, second);
-                if (parseInt(document.getElementById("score").textContent)%2===0) {
-                    let scoreJoueur2 = document.getElementById("pointJoueur2");
-                    scoreJoueur2.textContent = parseInt(scoreJoueur2.textContent) + 1;
-                } else {
-                    let scoreJoueur1 = document.getElementById("pointJoueur1");
-                    scoreJoueur1.textContent = parseInt(scoreJoueur1.textContent) + 1;
-                }
-                
-            } 
-            else {
-                document.querySelectorAll('.card').forEach((card, i) => {
-                    if (!trouvées.includes(i)) {
-                        card.textContent = '🎶';
-                        card.classList.remove('retournées');
-                    }
-                });
-            }
-            if (liste_cartes[first] === liste_cartes[second]) {
-                document.querySelectorAll('.card')[first].style.visibility = 'hidden';
-                 document.querySelectorAll('.card')[second].style.visibility = 'hidden';
-                document.querySelectorAll('.card')[second].classList.add('found');
-            }
-            retournées = [];
+        function estAngle(cases){
+    if(cases.length !== 3) return false;
 
-setTimeout(finDePartie, 50);
+    const coords = cases.map(c => getCoords(c));
 
-        }
+    function adjacent(a,b){
+        return (
+            (Math.abs(a.row - b.row) === 1 && a.col === b.col) ||
+            (Math.abs(a.col - b.col) === 1 && a.row === b.row)
+        );
+    }
 
-            function finDePartie() {
-    if (trouvées.length !== liste_cartes.length) return;
+    // tester chaque point comme centre potentiel
+    for(let i=0;i<3;i++){
+        let centre = coords[i];
+        let autres = coords.filter((_,idx)=>idx!==i);
 
-    let coups = parseInt(document.getElementById("score").textContent);
-
-    if (document.getElementById("1joueur").checked) {
-        alert('Vous avez gagné en ' + coups + ' coups !');
-    } else {
-        let scoreJoueur1 = parseInt(document.getElementById("pointJoueur1").textContent);
-        let scoreJoueur2 = parseInt(document.getElementById("pointJoueur2").textContent);
-
-        if (scoreJoueur1 > scoreJoueur2) {
-            alert(document.getElementById("nomJoueur1").value + ' a gagné avec ' + scoreJoueur1 + ' points !');
-        } else if (scoreJoueur2 > scoreJoueur1) {
-            alert(document.getElementById("nomJoueur2").value + ' a gagné avec ' + scoreJoueur2 + ' points !');
-        } else {
-            alert('Égalité avec ' + scoreJoueur1 + ' points chacun !');
+        if(adjacent(centre, autres[0]) && adjacent(centre, autres[1])){
+            return true;
         }
     }
+
+    return false;
+}
+function est_transformation(cases){
+    if(cases.length !== 4) return false;
+
+    // modèle de base
+    let baseShape = [
+        [0,0],[0,1],
+        [1,0],[1,2]
+    ];
+
+    function getCoords(td){
+        const tr = td.parentElement;
+        const table = tr.parentElement;
+        return {
+            row: Array.from(table.children).indexOf(tr),
+            col: Array.from(tr.children).indexOf(td)
+        };
+    }
+
+    let coords = cases.map(c => {
+        let p = getCoords(c);
+        return [p.row, p.col];
+    });
+
+    // normalise coordonnées
+    function normalize(shape){
+        let minR = Math.min(...shape.map(p=>p[0]));
+        let minC = Math.min(...shape.map(p=>p[1]));
+        return shape
+            .map(p=>[p[0]-minR, p[1]-minC])
+            .sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+    }
+
+    // rotation 90°
+    function rotate(shape){
+        return shape.map(([r,c]) => [c, -r]);
+    }
+
+    // miroir horizontal
+    function mirror(shape){
+        return shape.map(([r,c]) => [r, -c]);
+    }
+
+    function sameShape(a,b){
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    let target = normalize(coords);
+
+    let variants = [];
+    let shape = baseShape;
+
+    // 4 rotations
+    for(let i=0;i<4;i++){
+        variants.push(normalize(shape));
+        variants.push(normalize(mirror(shape)));
+        shape = rotate(shape);
+    }
+
+    return variants.some(v => sameShape(v,target));
+}
+function transformation(td, joueur){
+    td.textContent = joueur;
+    td.classList.remove("utilisé");
+    setTimeout(() => {
+        td.classList.remove("selectionner");
+    }, 1);
 }
 
-        
+function transformationClick(e){
+    transformation(e.currentTarget, joueurTransformation);
 
-        function reinitialisation() {
-            liste_cartes = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
-            retournées = [];
-            trouvées = [];
-            initialisation();
+    for (let td of document.querySelectorAll('td')){
+        td.removeEventListener('click', transformationClick);
+    }
+}
+function reservationClick(e){
+    
+    if (e.currentTarget.textContent === " " && e.currentTarget.style.backgroundColor !== "purple" && e.currentTarget.style.backgroundColor !== "gold"){
+        if (joueurReservation === skin_j2){
+            e.currentTarget.style.backgroundColor = "purple";
         }
+        else if (joueurReservation === skin_j1){
+           e.currentTarget.style.backgroundColor = "gold";
+        }
+        if (reservation < nb_resa){
+            reservation++;
+            if (joueurReservation === skin_j1){
+            document.getElementById('reservations-j1').textContent = parseInt(document.getElementById('reservations-j1').textContent) - 1;
+            }
+            else if (joueurReservation === skin_j2){
+                document.getElementById('reservations-j2').textContent = parseInt(document.getElementById('reservations-j2').textContent) - 1;
+            }
+        }
+        else {
+           for (let td of document.querySelectorAll('td')){
+            td.removeEventListener('click', reservationClick);
+            td.addEventListener('click', jouerClick);
+        }
+        reservation=1;
+        if (joueurReservation === skin_j1){
+            document.getElementById('reservations-j1').textContent = parseInt(document.getElementById('reservations-j1').textContent) - 1;
+            setTimeout(() => {
+                document.getElementById("reservations-j1").style.display = 'none';
+                document.getElementById("t_reservations-j1").style.display = 'none';
+            }, 500);
+        }
+        else if (joueurReservation === skin_j2){
+            document.getElementById('reservations-j2').textContent = parseInt(document.getElementById('reservations-j2').textContent) - 1;
+            setTimeout(() => {
+                document.getElementById("reservations-j2").style.display = 'none';
+                document.getElementById("t_reservations-j2").style.display = 'none';
+            }, 500);
+        }
+    }
+    }
+}
+function destructionClick(e){
+    if (!(e.currentTarget.textContent === " ")) {
+    destruction2(e.currentTarget);
+    if (destruction===1){
+        for (let td of document.querySelectorAll('td')){
+            td.removeEventListener('click', destructionClick);
+            td.addEventListener('click', jouerClick);
+        }
+        destruction=0;
+    }
+    else {
+        destruction++;
+    }
+}}
+function destruction2(td){
+    td.textContent = " ";
+    td.classList.remove("utilisé");
+    setTimeout(() => {
+        td.classList.remove("selectionner");
+    }, 1);
+}
+function sacrificeClick(e){
+    if (e.currentTarget.textContent === joueurSacrifice) {
+    destruction2(e.currentTarget);
+    if (destruction===1){
+        for (let td of document.querySelectorAll('td')){
+            td.removeEventListener('click', sacrificeClick);
+            td.addEventListener('click', ouvertureClick);
+        }
+        destruction=0;
+    }
+    else {
+        destruction++;
+    }
+}
+else {
+    alert("Vous devez sacrifier un point vous appartenant");
+}
+}
+function ouvertureClick(e){
+    if (e.currentTarget.textContent === joueurSacrifice) {
+        e.currentTarget.classList.remove("utilisé");
+        if (ouverture===2){
+        for (let td of document.querySelectorAll('td')){
+            td.removeEventListener('click', ouvertureClick);
+            td.addEventListener('click', jouerClick);
+        }
+        deSelectionner();
+        joueurSacrifice = null;
+        }
+        else {
+            ouverture++;
+        }
+        
+    }
+}
+function est_4_point_en_zigzag(cases){
+    if(cases.length !== 5) return false;
 
-        initialisation();
+    // forme de base
+    let baseShape = [
+        [0,0],
+        [1,1],
+        [2,0],
+        [3,1],
+        [4,0]
+    ];
+
+    function getCoords(td){
+        const tr = td.parentElement;
+        const table = tr.parentElement;
+        return {
+            row: Array.from(table.children).indexOf(tr),
+            col: Array.from(tr.children).indexOf(td)
+        };
+    }
+
+    let coords = cases.map(c => {
+        let p = getCoords(c);
+        return [p.row, p.col];
+    });
+
+    function normalize(shape){
+        let minR = Math.min(...shape.map(p=>p[0]));
+        let minC = Math.min(...shape.map(p=>p[1]));
+        return shape
+            .map(p=>[p[0]-minR, p[1]-minC])
+            .sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+    }
+
+    function rotate(shape){
+        return shape.map(([r,c]) => [c, -r]);
+    }
+
+    function mirror(shape){
+        return shape.map(([r,c]) => [r, -c]);
+    }
+
+    function sameShape(a,b){
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    let target = normalize(coords);
+
+    let variants = [];
+    let shape = baseShape;
+
+    for(let i=0;i<4;i++){
+        variants.push(normalize(shape));
+        variants.push(normalize(mirror(shape)));
+        shape = rotate(shape);
+    }
+
+    return variants.some(v => sameShape(v,target));
+}
+function est_reservation(cases){
+    if(cases.length < 3) return false;
+
+    const coords = cases.map(td => ({
+        row: td.parentElement.rowIndex,
+        col: td.cellIndex
+    }));
+
+    const sameRow = coords.every(c => c.row === coords[0].row);
+    const sameCol = coords.every(c => c.col === coords[0].col);
+
+    if(sameRow || sameCol){
+        return cases.length;
+    }
+
+    return false;
+}
+function est_rase_board(cases){
+    if(cases.length !== 6) return false;
+
+    // forme de base
+    let baseShape = [
+        [0,0],
+        [1,0],
+        [2,-1],
+        [2,-2],
+        [1,-3],
+        [0,-3]
+    ];
+
+    function getCoords(td){
+        const tr = td.parentElement;
+        const table = tr.parentElement;
+        return {
+            row: Array.from(table.children).indexOf(tr),
+            col: Array.from(tr.children).indexOf(td)
+        };
+    }
+
+    let coords = cases.map(c => {
+        let p = getCoords(c);
+        return [p.row, p.col];
+    });
+
+    function normalize(shape){
+        let minR = Math.min(...shape.map(p=>p[0]));
+        let minC = Math.min(...shape.map(p=>p[1]));
+        return shape
+            .map(p=>[p[0]-minR, p[1]-minC])
+            .sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+    }
+
+    function rotate(shape){
+        return shape.map(([r,c]) => [c, -r]);
+    }
+
+    function mirror(shape){
+        return shape.map(([r,c]) => [r, -c]);
+    }
+
+    function sameShape(a,b){
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    let target = normalize(coords);
+
+    let variants = [];
+    let shape = baseShape;
+
+    for(let i=0;i<4;i++){
+        variants.push(normalize(shape));
+        variants.push(normalize(mirror(shape)));
+        shape = rotate(shape);
+    }
+
+    return variants.some(v => sameShape(v,target));
+}
+function est_troisfermés(cases) {
+    if(cases.length !== 3) return false;
+
+    // modèle de base
+    let baseShape = [
+        [0,0],[1,1],
+        [1,-1]
+    ];
+
+    function getCoords(td){
+        const tr = td.parentElement;
+        const table = tr.parentElement;
+        return {
+            row: Array.from(table.children).indexOf(tr),
+            col: Array.from(tr.children).indexOf(td)
+        };
+    }
+
+    let coords = cases.map(c => {
+        let p = getCoords(c);
+        return [p.row, p.col];
+    });
+
+    // normalise coordonnées
+    function normalize(shape){
+        let minR = Math.min(...shape.map(p=>p[0]));
+        let minC = Math.min(...shape.map(p=>p[1]));
+        return shape
+            .map(p=>[p[0]-minR, p[1]-minC])
+            .sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+    }
+
+    // rotation 90°
+    function rotate(shape){
+        return shape.map(([r,c]) => [c, -r]);
+    }
+
+    // miroir horizontal
+    function mirror(shape){
+        return shape.map(([r,c]) => [r, -c]);
+    }
+
+    function sameShape(a,b){
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    let target = normalize(coords);
+
+    let variants = [];
+    let shape = baseShape;
+
+    // 4 rotations
+    for(let i=0;i<4;i++){
+        variants.push(normalize(shape));
+        variants.push(normalize(mirror(shape)));
+        shape = rotate(shape);
+    }
+
+    return variants.some(v => sameShape(v,target));
+}
+function est_reservation_fig(cases){
+    if(cases.length !== 2) return false;
+
+    // forme de base
+    let baseShape = [
+        [0,0],
+        [0,1]
+    ];
+
+    function getCoords(td){
+        const tr = td.parentElement;
+        const table = tr.parentElement;
+        return {
+            row: Array.from(table.children).indexOf(tr),
+            col: Array.from(tr.children).indexOf(td)
+        };
+    }
+
+    let coords = cases.map(c => {
+        let p = getCoords(c);
+        return [p.row, p.col];
+    });
+
+    function normalize(shape){
+        let minR = Math.min(...shape.map(p=>p[0]));
+        let minC = Math.min(...shape.map(p=>p[1]));
+        return shape
+            .map(p=>[p[0]-minR, p[1]-minC])
+            .sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+    }
+
+    function rotate(shape){
+        return shape.map(([r,c]) => [c, -r]);
+    }
+
+    function mirror(shape){
+        return shape.map(([r,c]) => [r, -c]);
+    }
+
+    function sameShape(a,b){
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    let target = normalize(coords);
+
+    let variants = [];
+    let shape = baseShape;
+
+    for(let i=0;i<4;i++){
+        variants.push(normalize(shape));
+        variants.push(normalize(mirror(shape)));
+        shape = rotate(shape);
+    }
+
+    return variants.some(v => sameShape(v,target));
+}
+function est_destruction(cases){
+    if(cases.length !== 4) return false;
+
+    // forme de base
+    let baseShape = [
+        [0,0],
+        [1,0],
+        [-1,0],
+        [0,1]
+    ];
+
+    function getCoords(td){
+        const tr = td.parentElement;
+        const table = tr.parentElement;
+        return {
+            row: Array.from(table.children).indexOf(tr),
+            col: Array.from(tr.children).indexOf(td)
+        };
+    }
+
+    let coords = cases.map(c => {
+        let p = getCoords(c);
+        return [p.row, p.col];
+    });
+
+    function normalize(shape){
+        let minR = Math.min(...shape.map(p=>p[0]));
+        let minC = Math.min(...shape.map(p=>p[1]));
+        return shape
+            .map(p=>[p[0]-minR, p[1]-minC])
+            .sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+    }
+
+    function rotate(shape){
+        return shape.map(([r,c]) => [c, -r]);
+    }
+
+    function mirror(shape){
+        return shape.map(([r,c]) => [r, -c]);
+    }
+
+    function sameShape(a,b){
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    let target = normalize(coords);
+
+    let variants = [];
+    let shape = baseShape;
+
+    for(let i=0;i<4;i++){
+        variants.push(normalize(shape));
+        variants.push(normalize(mirror(shape)));
+        shape = rotate(shape);
+    }
+
+    return variants.some(v => sameShape(v,target));
+}
+function est_sacrifice_ouverture(cases){
+     if(cases.length !== 2) return false;
+
+    // forme de base
+    let baseShape = [
+        [0,0],
+        [1,1]
+    ];
+
+    function getCoords(td){
+        const tr = td.parentElement;
+        const table = tr.parentElement;
+        return {
+            row: Array.from(table.children).indexOf(tr),
+            col: Array.from(tr.children).indexOf(td)
+        };
+    }
+
+    let coords = cases.map(c => {
+        let p = getCoords(c);
+        return [p.row, p.col];
+    });
+
+    function normalize(shape){
+        let minR = Math.min(...shape.map(p=>p[0]));
+        let minC = Math.min(...shape.map(p=>p[1]));
+        return shape
+            .map(p=>[p[0]-minR, p[1]-minC])
+            .sort((a,b)=> a[0]-b[0] || a[1]-b[1]);
+    }
+
+    function rotate(shape){
+        return shape.map(([r,c]) => [c, -r]);
+    }
+
+    function mirror(shape){
+        return shape.map(([r,c]) => [r, -c]);
+    }
+
+    function sameShape(a,b){
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    let target = normalize(coords);
+
+    let variants = [];
+    let shape = baseShape;
+
+    for(let i=0;i<4;i++){
+        variants.push(normalize(shape));
+        variants.push(normalize(mirror(shape)));
+        shape = rotate(shape);
+    }
+
+    return variants.some(v => sameShape(v,target));
+}
+function est_victoire(joueur){
+
+    const table = document.querySelector("#grille table");
+    const lignes = table.rows.length;
+    const colonnes = table.rows[0].cells.length;
+
+    for(let r = 0; r <= lignes-4; r++){
+        for(let c = 0; c <= colonnes-4; c++){
+
+            let victoire = true;
+
+            for(let i = 0; i < 4; i++){
+                for(let j = 0; j < 4; j++){
+
+                    // uniquement le bord du carré
+                    if(i === 0 || i === 3 || j === 0 || j === 3){
+
+                        let cell = table.rows[r+i].cells[c+j];
+
+                        if(cell.textContent !== joueur){
+                            victoire = false;
+                            break;
+                        }
+
+                    }
+
+                }
+                if(!victoire) break;
+            }
+
+            if(victoire){
+                return true;
+            }
+
+        }
+    }
+
+    return false;
+}    
     </script>
 </body>
 </html>
